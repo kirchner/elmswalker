@@ -42,6 +42,10 @@ init =
             , silentSkimmer
             , plummet
             , volcanicUpheaval
+            , fortifiedRampart
+            , stoneHavenMedic
+            , vestigeOfEmrakul
+            , courierGriffin
             ]
       , ourHand = [ plummet ]
       , ourBattlefield = []
@@ -90,6 +94,73 @@ silentSkimmer =
             { power = 0
             , toughness = 4
             , creatureTypes = [ EldraziDrone ]
+            }
+        ]
+    }
+
+
+fortifiedRampart : Card
+fortifiedRampart =
+    { name = "Fortified Rampart"
+    , manaCosts = [ ( 1, Colorless ), ( 1, White ) ]
+    , abilities = [ Defender ]
+    , types =
+        [ Creature
+            { power = 0
+            , toughness = 6
+            , creatureTypes = [ Wall ]
+            }
+        ]
+    }
+
+
+stoneHavenMedic : Card
+stoneHavenMedic =
+    { name = "Stone Haven Medic"
+    , manaCosts = [ ( 1, Colorless ), ( 1, White ) ]
+    , abilities =
+        [ Activated [ ManaCost [ ( 1, Colorless ) ], Tap ] [ GainLife 1 You ] ]
+    , types =
+        [ Creature
+            { power = 1
+            , toughness = 3
+            , creatureTypes = [ KorCleric ]
+            }
+        ]
+    }
+
+
+vestigeOfEmrakul : Card
+vestigeOfEmrakul =
+    { name = "Vestige of Emrakul"
+    , manaCosts = [ ( 3, Colorless ), ( 1, Red ) ]
+    , abilities =
+        [ Devoid
+        , Trample
+        ]
+    , types =
+        [ Creature
+            { power = 3
+            , toughness = 4
+            , creatureTypes = [ EldraziDrone ]
+            }
+        ]
+    }
+
+
+courierGriffin : Card
+courierGriffin =
+    { name = "Courier Griffin"
+    , manaCosts = [ ( 3, Colorless ), ( 1, White ) ]
+    , abilities =
+        [ Flying
+        , Whenever (EntersTheBattlefield Self) [ GainLife 2 You ]
+        ]
+    , types =
+        [ Creature
+            { power = 2
+            , toughness = 3
+            , creatureTypes = [ Griffin ]
             }
         ]
     }
@@ -150,6 +221,9 @@ writeType type_ =
 
 type CreatureType
     = EldraziDrone
+    | Griffin
+    | KorCleric
+    | Wall
 
 
 writeCreatureType : CreatureType -> String
@@ -157,6 +231,15 @@ writeCreatureType creatureType =
     case creatureType of
         EldraziDrone ->
             "Eldrazi Drone"
+
+        Griffin ->
+            "Griffin"
+
+        KorCleric ->
+            "Kor Cleric"
+
+        Wall ->
+            "Wall"
 
 
 type Player
@@ -208,7 +291,10 @@ writeMana mana =
 type Ability
     = Devoid
     | Flying
+    | Defender
+    | Trample
     | Whenever Condition (List Effect)
+    | Activated (List Cost) (List Effect)
 
 
 writeAbility : String -> Ability -> String
@@ -220,19 +306,28 @@ writeAbility cardName ability =
         Flying ->
             "flying"
 
+        Defender ->
+            "defender"
+
+        Trample ->
+            "trample"
+
         Whenever condition effects ->
             "whenever "
                 ++ writeCondition cardName condition
                 ++ ", "
-                ++ (effects
-                        |> List.map (writeEffect cardName)
-                        |> String.join " and "
-                   )
+                ++ writeEffects cardName effects
+
+        Activated costs effects ->
+            writeCosts costs
+                ++ ": "
+                ++ writeEffects cardName effects
 
 
 type Condition
     = Attacks Target
     | CastSpell Mana Player
+    | EntersTheBattlefield Target
 
 
 writeCondition : String -> Condition -> String
@@ -247,11 +342,46 @@ writeCondition cardName condition =
                 ++ writeMana mana
                 ++ " spell"
 
+        EntersTheBattlefield target ->
+            writeTarget cardName target ++ " enters the battlefield"
+
+
+type Cost
+    = ManaCost (List ( Int, Mana ))
+    | Tap
+
+
+writeCosts : List Cost -> String
+writeCosts costs =
+    -- TODO: we need to create E.el instead
+    costs
+        |> List.map writeCost
+        |> String.join ", "
+
+
+writeCost : Cost -> String
+writeCost cost =
+    case cost of
+        ManaCost mana ->
+            -- TODO
+            "some mana"
+
+        Tap ->
+            "tap"
+
 
 type Effect
     = Destroy Target
     | LoseLife Int Target
+    | GainLife Int Target
     | ModifyPowerToughness Int Int Target Duration
+
+
+writeEffects : String -> List Effect -> String
+writeEffects cardName effects =
+    effects
+        |> List.map (writeEffect cardName)
+        |> String.join " and "
 
 
 writeEffect : String -> Effect -> String
@@ -263,6 +393,12 @@ writeEffect cardName effect =
         LoseLife amount target ->
             writeTarget cardName target
                 ++ " loses "
+                ++ toString amount
+                ++ " life"
+
+        GainLife amount target ->
+            writeTarget cardName target
+                ++ " gain "
                 ++ toString amount
                 ++ " life"
 
@@ -281,6 +417,7 @@ type Target
     | TargetCreature (List Ability)
     | TargetLand
     | DefendingPlayer
+    | You
 
 
 writeTarget : String -> Target -> String
@@ -301,6 +438,9 @@ writeTarget cardName target =
 
         DefendingPlayer ->
             "defending player"
+
+        You ->
+            "you"
 
 
 type Duration
@@ -363,7 +503,7 @@ viewCards title cards =
         [ E.text title
         , cards
             |> List.map viewCard
-            |> E.row NoStyle
+            |> E.wrappedRow NoStyle
                 [ A.padding 10
                 , A.spacing 10
                 ]
@@ -537,7 +677,7 @@ stylesheet =
         , S.style (ManaStyle Colorless)
             [ Color.background C.grey ]
         , S.style ManaNumber
-            [ Color.text C.white
+            [ Color.text C.lightGrey
             , Font.typeface [ "sans-serif" ]
             , Font.bold
             ]
