@@ -70,6 +70,7 @@ kozileksSentinel =
         [ Creature
             { power = 1
             , toughness = 4
+            , creatureTypes = [ EldraziDrone ]
             }
         ]
     }
@@ -88,6 +89,7 @@ silentSkimmer =
         [ Creature
             { power = 0
             , toughness = 4
+            , creatureTypes = [ EldraziDrone ]
             }
         ]
     }
@@ -129,10 +131,32 @@ type Type
     = Creature
         { power : Int
         , toughness : Int
+        , creatureTypes : List CreatureType
         }
     | Instant
         { effects : List Effect
         }
+
+
+writeType : Type -> String
+writeType type_ =
+    case type_ of
+        Creature _ ->
+            "Creature"
+
+        Instant _ ->
+            "Instant"
+
+
+type CreatureType
+    = EldraziDrone
+
+
+writeCreatureType : CreatureType -> String
+writeCreatureType creatureType =
+    case creatureType of
+        EldraziDrone ->
+            "Eldrazi Drone"
 
 
 type Player
@@ -370,6 +394,32 @@ viewCard card =
                             ]
                     )
                 ]
+
+        subHeader =
+            E.el NoStyle
+                [ A.padding 4 ]
+                ((card.types
+                    |> List.map writeType
+                    |> String.join " "
+                 )
+                    ++ (card.types
+                            |> List.map writeSubTypes
+                            |> String.join " "
+                       )
+                    |> E.text
+                )
+
+        writeSubTypes type_ =
+            case type_ of
+                Creature info ->
+                    " - "
+                        ++ (info.creatureTypes
+                                |> List.map writeCreatureType
+                                |> String.join " "
+                           )
+
+                _ ->
+                    ""
     in
     E.column CardStyle
         [ A.padding 4
@@ -377,6 +427,8 @@ viewCard card =
         , A.height (px 250)
         ]
         [ header
+        , E.hairline Hairline
+        , subHeader
         , E.hairline Hairline
         , viewAbilities card.name card.abilities
         , E.el NoStyle [ A.alignBottom ] <|
